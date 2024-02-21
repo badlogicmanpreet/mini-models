@@ -98,6 +98,16 @@ Finally, we wrap up our adventure with a backward pass and updating parameters. 
 
     ![Graph](images/kaiming.png)
 
+4. `Our essential goal` is to keep the preactivation neither too small nor too large, so the best thing to do is instead of using the Kaiming function, we can use batch normalization to make the preactivation Gaussian with mean 0 and variance 1 so that the tanh is not in the flat region. Simple yet powerful.\
+`Batch normalize` (perfect guassian) the preactivations, mainly during the initialization time. For other times, we want the network to have varying preactivations/distributions (learning time),i.e. bngain and bnbias are learnable parameters, they are initialized to 1 and 0 respectively, and they are updated during the training process
+\
+`Batch normalization, because of its batch nature, has this regularization effect`. It is not a regularizer, but it has a regularizing effect, i.e. each example is normalized concerning the batch, 'h' does gitter a little bit, which means that the network will not overfit to the one example or specific example.\
+`For the testing purpose`, we need to keep the running mean and running std, calculated on the side, this is important because we may want to test with single example.
+
+    Read more: https://arxiv.org/pdf/1502.03167.pdf
+
+    ![Graph](images/bn.png)
+
 ## Usage
 
 To use any of the models, navigate to the respective directory under the `src` directory and follow the instructions provided in the README file.
