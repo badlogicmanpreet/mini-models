@@ -108,6 +108,49 @@ Finally, we wrap up our adventure with a backward pass and updating parameters. 
 
     ![Graph](images/bn.png)
 
+## Neural Network: From Implementation to Insight
+
+Let us implement the neural network like in PyTorch, which has linear, BachNorm, and Tanh layers. To optimize the neural network's behaviour, it's essential to visualize the effects of the kaiming function and batch normalization on activations.
+
+We implement three classes: `Linear, BatchNorm1d, and Tanh` 
+
+In the Linear layer, we initialize the weights and biases, where the fan in and fan out define the input and output size, e.g. in the first layer, we have 30 inputs and 100 neurons (outputs), 30 is the no. of inputs, a.k.a block or context size multiplied by embedding size. Here, we divide the weights by the square root of the fan in (kaiming function), which is done in this pre-activation layer to ensure the values are scaled down before they go into the tanh layer, done to ensure that the squashed values are not in the regions of -1, 1, 0 because we can then face a gradient diminishing problem. We are trying to keep the distribution during pre-activation as smooth as possible with a std of 1 and a mean of 0. Secondly, biases may not be needed because we will apply beta later, a.k.a shift/bias, when we do batch normalization. The best is to keep bias as an optional parameter. The call function performs the linear operation, and the parameters function keeps track of all trainable parameters.
+
+In the BatchNorm1d layer, we initialize it with epsilon, momentum, gamma, beta, and running mean and variance. Look at the batch norm paper for details of this formula. Epsilon is used in the denominator to avoid division with zero, a tiny number. Conversely, momentum is used to maintain the running mean and variance of the batches in each run. Running mean and variance are later used at the inferencing time. This is a.k.a training the running mean and variance with momentum update.
+The call function takes the input batch x; during training, it takes the mean and variance of the x, whereas during inferencing, it uses the running mean and variance. The first step is calculating x-hat, normalizing to unit variance, i.e. transform x to `x-hat = (x - x-mean) / torch.sqrt(xvar + self.eps)`. We then scale the x-hat and shift by adding bias, i.e. `self.out = self.gamma * xhat + self.beta`. Once the scale/shift is done, we calculate the running mean and variance if under training. The learnable parameters here are only gamma and beta.
+
+The tanh operation is performed in the Tanh layer.
+
+Using the above layers, define your neural network. I created a six-layer network. Make sure you define the dataset, embedding size, and hidden size and initialize C, which is the embedding matrix.
+
+Let's assume we don't use batch normalization and rely on the kaiming function. The first thing we do is ensure the last layer is not confident, which means that all the logits have the same probability as an outcome during the first time. This is done using `layers[-1].weight *= 0.1`
+For all the other layers, we will apply the gain to each `layer.weight *= 5/3`, 5/3 comes from kaiming function. When we use batch normalization, we use `layers[-1].gain *= 0.1` to make the last layer unconfident.
+
+Finally, perform the Optimization.
+
+Visualization
+Here, we visualize the layers, specifically the tanh layers (1, 3, 5, 7, 9), as they are more controllable data to visualize, and we can see the mean, std, and the percentage of saturated neurons `t = layer.out`. Saturated here means how many neurons are close to -1 or 1, which is a sign of vanishing gradients, i.e., the mean of t.abs() is > .97. What we observe with gain 5/3 is that the mean is close to 0, and the std is close to 1, and the percentage of saturated neurons is close to 0, which is a good sign. Initially, saturation is 20, i.e., a bit high, but it decreases with more layers. It's important to understand that if it were alone linear layers, the square root of fan_in above would have maintained the std to 1. Things would be good through all linear layers, but as we have tanh layers in between, which keep squashing the distribution, we need to keep adding some gain, like 5/3, to maintain the std to 1. If you consider the linear layers, commenting out the tanh layers, we will need to change the 5/3 gain to 1 because there is no non-linearity (squashing) from the tanh.
+
+![Graph](images/tanh_hist_activations.png)
+
+Side note: Why do we need tanh layers? If we just have linear layers stacked, the transformation is just a linear transformation, and we can just have one linear layer to do the same job. The tanh layers add non-linearity to the network, making it more expressive and, in principle, moving from a linear function to a more non-linear function.
+
+Now, let's visualize the gradients, i.e. `t = layer.out.grad`. An Important observation is that the gradients are not moving around for each layer; they are fairly constant.
+
+![Graph](images/tanh_hist_grad_activations.png)
+
+Above, we visualized the layers and their gradients. Now, let's look at the Weighted Gradient distributions, i.e. `t = p.grad`, where p has a dimension of 2 (not considering all trainable parameters but only weights). We mainly look at the shape of the t, mean, and std and the ratio of grad to the data, i.e. grad:data. 
+The grad:data is the scale of the gradients to the scale of the data. The gradients are exploding if the gradient is a very high number compared to the data. It is not good because `p.data += -lr * p.grad.data` will not work well. The amount of p.data will become very high if p.grad.dat is very high. In the last layer, the gradient's magnitudes are very high compared to the data(see below), indicating exploding gradients. SGD will only be ideal for some. The best is Adam. 
+
+![Graph](images/weights_data_to_grad_ration.png)
+
+Let us track and visualize the update to data ratio, modified above.
+The plot shows that the last layer update is very high compared to the data, which is a sign of exploding gradients. This mainly happened because we made the last layer less confident. -3 is the ideal ratio value, meaning the update is 1/1000 of the data. Play with parameters to get the ratio to -3.
+
+![Graph](images/last_layer_data_grad_ratio.png)
+
+*To put it simply, we start by examining the layer output. This gives us information about the kaiming function, which consists of gain and the square root of fan-in. It helps us prevent the diminishing gradient problem, which is when neurons stop learning. If we don't use kaiming and instead use batch normalization, we can still avoid this problem. We can experiment with different values and normalization techniques to see how the graph changes. It's essential to keep track of the mean, standard deviation, and saturation in particular. Secondly, we can also look at how the layer gradients are performing and how they change if we change the values or normalization techniques. Precisely track the mean and standard deviation. It should be consistent and not move around too much. Thirdly, we start looking at the gradients of the learnable parameters, mainly weights. It gets interesting here: if gradient values are high, the data value of the weight parameters becomes high. This is not good, as it now leads to an exploding gradient problem.*
+
 ## Usage
 
 To use any of the models, navigate to the respective directory under the `src` directory and follow the instructions provided in the README file.
