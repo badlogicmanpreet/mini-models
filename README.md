@@ -152,6 +152,10 @@ The plot shows that the last layer update is very high compared to the data, whi
 
 *To put it simply, we start by examining the layer output. This gives us information about the kaiming function, which consists of gain and the square root of fan-in. It helps us prevent the diminishing gradient problem, which is when neurons stop learning. If we don't use kaiming and instead use batch normalization, we can still avoid this problem. We can experiment with different values and normalization techniques to see how the graph changes. It's essential to keep track of the mean, standard deviation, and saturation in particular. Secondly, we can also look at how the layer gradients are performing and how they change if we change the values or normalization techniques. Precisely track the mean and standard deviation. It should be consistent and not move around too much. Thirdly, we start looking at the gradients of the learnable parameters, mainly weights. It gets interesting here: if gradient values are high, the data value of the weight parameters becomes high. This is not good, as it now leads to an exploding gradient problem.*
 
+## Backpropagation Expert
+
+The [Backprop](src/neural_network/backprop.ipynb) calculates gradients manually for the neural network's parameters during the backpropagation step. This involves computing detailed calculations for each layer and parameter. The notebook then compares these manual gradients to those computed by PyTorch to ensure correctness.
+
 ## Usage
 
 To use any of the models, navigate to the respective directory under the `src` directory and follow the instructions provided in the README file.
